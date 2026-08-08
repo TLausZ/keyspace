@@ -224,6 +224,16 @@
   }
   .frame .hint { font-size: 12px; }
   .frame .art { width: 97.5%; height: auto; }
+  .slot .howto {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 22px;
+    text-align: center;
+    font-size: 12px;
+    color: #8a7a5e;
+  }
 
   @media (max-width: 900px) {
     .body { grid-template-columns: 92px 1fr; }
@@ -545,7 +555,10 @@ function showPlate(i, dir) {
   const old = plate.querySelector('.slot');
   const slot = document.createElement('div');
   slot.className = 'slot';
-  slot.innerHTML = tr(STATIONS[i]).images.map(n => typeof n === 'string'
+  const howto = i !== 0 ? '' : `<div class="howto">${lang === 'de'
+    ? 'Scrollen, Pfeiltasten ↑↓ oder die Skala links führen durch die Stationen'
+    : 'Scroll, use the arrow keys ↑↓, or pick a station on the scale to the left'}</div>`;
+  slot.innerHTML = howto + tr(STATIONS[i]).images.map(n => typeof n === 'string'
     ? `<div class="frame"><span class="label">${n}</span><span class="hint">Bild folgt</span></div>`
     : `<div class="frame"><img class="art" src="${n.src}" alt="${n.label}"></div>`
   ).join('');
