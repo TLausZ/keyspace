@@ -595,6 +595,10 @@ function measureText() {
   const last = entries[entries.length - 1];
   heights[heights.length - 1] +=
     2 * (outro.offsetTop + outro.offsetHeight - last.offsetTop - last.offsetHeight);
+  // same for the howto above the first entry, otherwise a short column centres
+  // that entry and pushes the howto out of the top edge
+  const howto = track.querySelector('.howto');
+  heights[0] += 2 * (entries[0].offsetTop - howto.offsetTop);
 }
 
 // entries taller than the column pan under the wheel before travel resumes;
