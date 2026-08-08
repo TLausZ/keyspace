@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2^256 · Start</title>
+<style>
+  @font-face {
+    font-family: 'EB Garamond';
+    src: url('fonts/EBGaramond-latin.woff2') format('woff2');
+    font-weight: 400 700;
+    font-display: swap;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #ece2cd;
+    color: #8a7a5e;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    overflow: hidden;
+  }
+  #cloud { position: fixed; inset: 0; width: 100%; height: 100%; }
+
+  /* modal: blurs the whole background, panel itself semi-transparent paper */
+  #overlay {
+    position: fixed; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    opacity: 0;
+    visibility: hidden;             /* fully out of the way until shown */
+    pointer-events: none;
+    transition: opacity 1.8s ease-in-out;
+    padding: 16px;
+  }
+  #overlay.shown { opacity: 1; visibility: visible; }
+  /* only the modal blurs what lies behind it — everything beside it stays sharp */
+  /* inverted: dark panel on light page, backdrop inverts the sand behind it
+     (hue-rotate keeps the sepia warm instead of flipping to blue) */
+  body.no-backdrop #modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: rgba(45,36,25,0.93);   /* solid stand-in so text stays readable */
+  }
+  #modal {
+    max-width: 440px;
+    background: rgba(58,46,32,0.3);
+    backdrop-filter: invert(0.94) hue-rotate(180deg);
+    -webkit-backdrop-filter: invert(0.94) hue-rotate(180deg);
+    border: 1px solid rgba(242,234,214,0.3);
+    border-radius: 4px;
+    padding: 20px;
+    pointer-events: auto;
+  }
+  #modal h1 { font: 600 24px 'EB Garamond', serif; color: #f2ead6; margin-bottom: 10px; }
+  #modal p { color: #e8ddc4; }
+  #modal p + p { margin-top: 8px; }
+  #modal .bignum {
+    display: block;
+    margin: 6px 0;
+    font: 600 14px 'EB Garamond', serif;
+    color: #f2ead6;
+    word-break: break-all;
+    letter-spacing: 0.04em;
+  }
+  #modal .btn {
+    margin-top: 16px;
+    font: 400 12px ui-sans-serif, system-ui, sans-serif;
+    background: #f2ead6;
+    color: #5c4a34;
+    border: none;
+    border-radius: 19px;
+    height: 38px;
+    min-width: 96px;
+    padding: 0 12px;
+    cursor: pointer;
+  }
+  #modal .btn:focus-visible { outline: 2px solid rgba(242,234,214,0.85); outline-offset: 2px; }
+  #modal { position: relative; }
+  #modal .lang {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    display: flex;
+    gap: 6px;
+    font: 400 11px ui-sans-serif, system-ui, sans-serif;
+  }
+  #modal .lang button {
+    background: none; border: none; padding: 0;
+    font: inherit; letter-spacing: 0.08em;
+    color: rgba(242,234,214,0.55); cursor: pointer;
+  }
+  #modal .lang button.active { color: #f2ead6; font-weight: 600; }
+  #modal .lang button:hover { text-decoration: underline; }
+  #modal .lang .sep { color: rgba(242,234,214,0.3); }
+
+  /* tuning panel, styled like the visualizer scene panel but on the right */
+  #panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 232px;
+    background: rgba(236,226,205,0.94);
+    border-left: 1px solid rgba(110,92,64,0.4);
+    padding: 12px 12px 20px;
+    overflow-y: auto;
+    font-size: 12px;
+    color: #6b5a42;
+    z-index: 5;
+    transition: transform 0.25s ease;
+  }
+  body.panel-closed #panel { transform: translateX(100%); }
+  #panel .sec {
+    font: 600 14px 'EB Garamond', serif;
+    color: #5c4a34;
+    border-bottom: 1px solid rgba(110,92,64,0.25);
+    margin: 14px 0 6px;
+    padding-bottom: 3px;
+    cursor: pointer;
+  }
+  #panel .sec:first-child { margin-top: 0; }
+  #panel .sec > span { float: right; font-size: 12px; color: #8a7a5e; }
+  #panel .body.closed { display: none; }
+  #panel .row { display: block; margin-bottom: 8px; cursor: pointer; }
+  #panel .row .val { float: right; color: #8a7a5e; }
+  #panel .row .reset {
+    background: none; border: none;
+    color: #8a7a5e; font-size: 11px;
+    margin-left: 4px; padding: 0 2px;
+    cursor: pointer;
+  }
+  #panel .row .reset:hover { color: #5c4a34; }
+  #panel .row input[type=range] {
+    width: 100%;
+    margin-top: 2px;
+    accent-color: #5c4a34;
+  }
+  #cfgOut {
+    width: 100%;
+    margin-top: 14px;
+    min-height: 72px;
+    font: 11px ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: #6b5a42;
+    background: transparent;
+    border: 1px dashed rgba(110,92,64,0.4);
+    border-radius: 4px;
+    padding: 6px;
+    resize: vertical;
+  }
+  #cfgHint { margin-top: 10px; color: #8a7a5e; font-size: 11px; }
+  #panelToggle {
+    position: fixed; top: 8px; right: 240px;
+    width: 29px; height: 29px;
+    background: rgba(236,226,205,0.94);
+    border: 1px solid rgba(110,92,64,0.4);
+    border-radius: 4px;
+    color: #5c4a34; cursor: pointer;
+    z-index: 6;
+    transition: right 0.25s ease;
+  }
+  body.panel-closed #panelToggle { right: 8px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #overlay { transition: none; }
+  }
+</style>
+</head>
+<body class="panel-closed">
+
+<canvas id="cloud"></canvas>
+
+<div id="panel"></div>
+<button id="panelToggle" aria-label="Panel ein-/ausblenden">›</button>
+
+<div id="overlay">
+  <div id="modal" role="dialog" aria-labelledby="modalTitle">
+    <div class="lang" aria-label="Sprache">
+      <button data-lang="de">DE</button><span class="sep">|</span><button data-lang="en">EN</button>
+    </div>
+    <h1 id="modalTitle" data-i18n="title"></h1>
+    <p data-i18n="p1"></p>
+    <p data-i18n="p2"></p>
+    <p data-i18n="p3"></p>
+    <button class="btn" id="enterBtn" data-i18n="btn"></button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// language switch: fills every [data-i18n] element live, choice persists in localStorage
+const BIGNUM = '<span class="bignum">115792089237316195423570985008687907853269984665640564039457584007913129639936</span>';
+const I18N = {
+  de: {
+    title: 'Wie gross ist eigentlich 2<sup>256</sup>?',
+    p1: `Jeder Bitcoin Private Key ist ein Zufallstreffer in einem Raum mit 2<sup>256</sup> Möglichkeiten. Das ist eine Zahl mit 78 Stellen, fast so viele, wie das Universum Atome hat: ${BIGNUM} Wer den Key hat, hat die Coins; niemand sonst kann ihn erraten.`,
+    p2: 'Unser Gehirn schätzt linear: doppelt so viel, halb so viel. 2<sup>256</sup> entsteht aber aus 256 Verdopplungen hintereinander, und exponentielles Wachstum überholt jede Vorstellung nach wenigen Schritten. Genau deshalb fühlt sich diese Zahl nach nichts an, obwohl die Sicherheit jeder Wallet an ihr hängt.',
+    p3: 'Miss 2<sup>256</sup> selbst nach.',
+    btn: 'Weiter ›',
+  },
+  en: {
+    title: 'How big is 2<sup>256</sup>, really?',
+    p1: `Every Bitcoin private key is a random hit in a space of 2<sup>256</sup> possibilities. That is a number with 78 digits, almost as many as the universe has atoms: ${BIGNUM} Whoever holds the key holds the coins; nobody else can guess it.`,
+    p2: 'Our brain estimates linearly: twice as much, half as much. But 2<sup>256</sup> comes from 256 doublings in a row, and exponential growth outruns any imagination within a few steps. That is exactly why this number feels like nothing, even though the security of every wallet rests on it.',
+    p3: 'Measure 2<sup>256</sup> for yourself.',
+    btn: 'Continue ›',
+  },
+};
+const langBtns = document.querySelectorAll('.lang button');
+function setLang(l) {
+  localStorage.setItem('lang', l);
+  document.documentElement.lang = l === 'de' ? 'de-CH' : 'en';
+  langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = I18N[l][el.dataset.i18n]; });
+}
+setLang(localStorage.getItem('lang') || 'de');
+langBtns.forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+// Flat 2d point cloud; after a calm drift the blurred "2^256" glyph acts as a
+// pressure stamp that pushes points out of the letterforms. The number becomes
+// readable as negative space with a densified rim (inspired by dm2graphics'
+// pendulum-grid reveal).
+
+const canvas = document.getElementById('cloud');
+const ctx = canvas.getContext('2d');
+const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+// ink tones for the points, darkest used sparsely for depth
+const TONES = ['rgba(92,74,52,0.9)', 'rgba(107,90,66,0.8)', 'rgba(138,122,94,0.7)', 'rgba(150,90,50,0.85)'];
+
+// live-tunable config, driven by the panel on the right
+const C = {
+  showModal: true,
+
+  pressAt: 0, pressDur: 1000, reliefDelay: 0, reliefDur: 200,
+  density: 150, cloudSpring: 0.004, cloudFade: 0.5,
+  glyphScale: 0.5, offsetY: 20,
+  lift: 60, reliefBlur: 8, rowGap: 5, colGap: 5,
+  scanDur: 500, rowSweep: 440, flightSpring: 0.02, waveAmp: 0.4,
+  mouseR: 90, mousePush: 4,
+};
+const pressAt = () => reducedMotion ? 0 : C.pressAt;
+const reliefAt = () => pressAt() + C.pressDur + C.reliefDelay;
+
+const P = {
+  pts: [],
+  field: null, fw: 0, fh: 0,            // half-resolution pressure field
+  started: 0, last: 0,
+  settledShown: false,
+  mouse: { x: -1e9, y: -1e9 },
+  dpr: 1, w: 0, h: 0,
+};
+
+// draw the glyph, then stack several blur radii into one soft pressure field
+// so the gradient still points outward deep inside the strokes
+function buildField() {
+  const w = P.w, h = P.h;
+  const g = document.createElement('canvas');
+  g.width = w; g.height = h;
+  const c = g.getContext('2d');
+  // heavy sans for the stamp: wide strokes press a clearly readable relief
+  const GLYPH_FONT = '900 SZpx ui-sans-serif, system-ui, sans-serif';
+  const H = Math.min(w * C.glyphScale, h * 0.9);
+  c.fillStyle = '#000';
+  c.font = GLYPH_FONT.replace('SZ', H);
+  const wBase = c.measureText('2').width;
+  c.font = GLYPH_FONT.replace('SZ', H * 0.45);
+  const wExp = c.measureText('256').width;
+  const total = wBase + wExp * 1.06;
+  const x0 = (w - total) / 2, y0 = h / 2 + H * 0.32;
+  c.font = GLYPH_FONT.replace('SZ', H);
+  c.fillText('2', x0, y0);
+  c.font = GLYPH_FONT.replace('SZ', H * 0.45);
+  c.fillText('256', x0 + wBase * 1.04, y0 - H * 0.52);
+  P.gTop = y0 - H * 0.88;               // glyph block bounds for the raster
+  P.gBot = y0 + H * 0.06;
+  P.gLeft = x0;
+  P.gRight = x0 + total;
+
+  // sharp alpha decides where a letter actually ends (walk stop condition)
+  const sharpData = c.getImageData(0, 0, w, h).data;
+  const sharp = P.sharp = new Uint8Array(w * h);
+  for (let i = 0; i < sharp.length; i++) sharp[i] = sharpData[i * 4 + 3];
+
+  const fw = P.fw = Math.ceil(w / 2), fh = P.fh = Math.ceil(h / 2);
+  const f = document.createElement('canvas');
+  f.width = fw; f.height = fh;
+  const fc = f.getContext('2d');
+  for (const [blur, alpha] of [[3, 0.4], [12, 0.35], [34, 0.25]]) {
+    fc.filter = `blur(${blur}px)`;
+    fc.globalAlpha = alpha;
+    fc.drawImage(g, 0, 0, fw, fh);
+  }
+  const img = fc.getImageData(0, 0, fw, fh).data;
+  const field = P.field = new Float32Array(fw * fh);
+  for (let i = 0; i < field.length; i++) field[i] = img[i * 4 + 3] / 255;
+
+  // purely soft field for the raster relief: no sharp component, so the
+  // lifted lines bend smoothly instead of jumping at letter edges
+  fc.clearRect(0, 0, fw, fh);
+  fc.filter = `blur(${C.reliefBlur}px)`;
+  fc.globalAlpha = 1;
+  fc.drawImage(g, 0, 0, fw, fh);
+  const rimg = fc.getImageData(0, 0, fw, fh).data;
+  const relief = P.relief = new Float32Array(fw * fh);
+  for (let i = 0; i < relief.length; i++) relief[i] = rimg[i * 4 + 3] / 255;
+}
+
+function fieldIdx(x, y) {
+  const fx = Math.min(P.fw - 2, Math.max(1, (x * 0.5) | 0));
+  const fy = Math.min(P.fh - 2, Math.max(1, (y * 0.5) | 0));
+  return fy * P.fw + fx;
+}
+
+// walk a home position down the pressure gradient until it leaves the sharp
+// letterform (plus a couple of rim steps); this precomputes where each point
+// ends up once the stamp is fully pressed
+function displacedHome(x, y) {
+  const f = P.field, fw = P.fw, sharp = P.sharp, w = P.w;
+  const wanderA = Math.random() * Math.PI * 2;
+  let out = 0;
+  for (let k = 0; k < 160; k++) {
+    const sx = Math.min(w - 1, Math.max(0, x | 0));
+    const sy = Math.min(P.h - 1, Math.max(0, y | 0));
+    if (sharp[sy * w + sx] < 10 && ++out > 2) break;
+    const i = fieldIdx(x, y);
+    let gx = f[i + 1] - f[i - 1], gy = f[i + fw] - f[i - fw];
+    const gl = Math.hypot(gx, gy);
+    if (gl < 0.004) {                    // plateau: wander in a fixed direction
+      gx = -Math.cos(wanderA); gy = -Math.sin(wanderA);
+    } else {
+      gx /= gl; gy /= gl;
+    }
+    x -= gx * 3; y -= gy * 3;
+  }
+  return { x, y };
+}
+
+function init() {
+  P.dpr = devicePixelRatio || 1;
+  P.w = innerWidth; P.h = innerHeight;
+  canvas.width = P.w * P.dpr;
+  canvas.height = P.h * P.dpr;
+  ctx.setTransform(P.dpr, 0, 0, P.dpr, 0, 0);
+  buildField();
+  const n = Math.round(P.w * P.h / C.density);
+  P.pts = [];
+  for (let i = 0; i < n; i++) {
+    const hx = Math.random() * P.w, hy = Math.random() * P.h;
+    const d = displacedHome(hx, hy);
+    P.pts.push({
+      x: hx, y: hy, vx: 0, vy: 0,
+      hx, hy, tx: d.x, ty: d.y,
+      tone: TONES[i % 7 === 0 ? 3 : i % 3],
+      size: 1.5 + Math.random() * 1.2,
+      phase: Math.random() * Math.PI * 2,
+    });
+  }
+  buildGlyphLayer();
+  if (reducedMotion) {
+    P.pts.forEach(p => { p.x = p.tx; p.y = p.ty; });
+    P.gpts.forEach(p => { p.x = p.rx; p.y = p.ry - p.hgt * C.lift; p.live = true; });
+    showModal();
+  }
+}
+
+// the glyph is built from DUPLICATES of cloud points so the cloud keeps
+// its density: every raster slot inside the letterforms clones a nearby
+// point (ring search over a bucket grid, popped only for donor variety)
+// and the clones fly in as a top-to-bottom line scan
+function buildGlyphLayer() {
+  const slots = [];
+  // letterforms grow by one raster column left and right plus one row below
+  const inG = (x, y) => {
+    const xi = x | 0, yi = y | 0;
+    return xi >= 0 && xi < P.w && yi >= 0 && yi < P.h && P.sharp[yi * P.w + xi] >= 100;
+  };
+  for (let y = Math.max(2, P.gTop); y <= Math.min(P.h - 2, P.gBot + 8 + C.rowGap); y += C.rowGap) {
+    for (let x = P.gLeft - C.colGap; x <= P.gRight + C.colGap; x += C.colGap) {
+      if (!inG(x, y) && !inG(x - C.colGap, y) && !inG(x + C.colGap, y) && !inG(x, y - C.rowGap)) continue;
+      slots.push({ x, y, hgt: P.relief[fieldIdx(x, y)] });
+    }
+  }
+  const cell = 64, gw = Math.ceil(P.w / cell), gh = Math.ceil(P.h / cell);
+  let buckets = Array.from({ length: gw * gh }, () => []);
+  const fillBuckets = () => P.pts.forEach((p, i) => {
+    buckets[Math.min(gh - 1, (p.hy / cell) | 0) * gw + Math.min(gw - 1, (p.hx / cell) | 0)].push(i);
+  });
+  fillBuckets();
+  P.gpts = [];
+  const scanSpan = Math.max(1, P.gBot + 8 - P.gTop);
+  const rowCount = Math.ceil(scanSpan / C.rowGap), perRow = C.scanDur / rowCount;
+  for (const s of slots) {
+    const cx = Math.min(gw - 1, (s.x / cell) | 0), cy = Math.min(gh - 1, (s.y / cell) | 0);
+    let picked = -1;
+    outer:
+    for (let r = 0; r < 8; r++) {              // expanding ring search
+      for (let by = Math.max(0, cy - r); by <= Math.min(gh - 1, cy + r); by++) {
+        for (let bx = Math.max(0, cx - r); bx <= Math.min(gw - 1, cx + r); bx++) {
+          if (Math.max(Math.abs(bx - cx), Math.abs(by - cy)) !== r) continue;
+          const b = buckets[by * gw + bx];
+          if (b.length) { picked = b.pop(); break outer; }
+        }
+      }
+    }
+    if (picked < 0) { fillBuckets(); picked = 0; }  // donors exhausted: refill
+    const d = P.pts[picked];
+    P.gpts.push({
+      x: d.tx, y: d.ty, vx: 0, vy: 0,
+      // offsetY moves only the floating relief; wave phase and curvature are
+      // anchored to the slot's ORIGINAL position so the shape never changes
+      rx: s.x, ry: s.y + C.offsetY, hgt: s.hgt, wp: s.y * 0.06,
+      tone: d.tone, size: d.size,
+      // crt-style scan: rows top to bottom, each row sweeping left to right
+      delay: (((s.y - P.gTop) / C.rowGap) | 0) * perRow
+           + (s.x - P.gLeft) / Math.max(1, P.gRight - P.gLeft) * C.rowSweep,
+      live: false,
+    });
+  }
+}
+
+function showModal() {
+  if (!C.showModal || P.settledShown) return;
+  P.settledShown = true;
+  document.getElementById('overlay').classList.add('shown');
+}
+
+function smoothstep(v) {
+  v = v < 0 ? 0 : v > 1 ? 1 : v;
+  return v * v * (3 - 2 * v);
+}
+
+// physics decoupled from the frame rate: throttled tabs catch up via substeps
+function stepPhysics(t) {
+  const sway = reducedMotion ? 0 : 1;
+  const press = reducedMotion ? 1 : smoothstep((t - pressAt()) / C.pressDur);
+  const rr = reducedMotion ? 1 : smoothstep((t - reliefAt()) / C.reliefDur);
+  for (const p of P.pts) {
+    const bx = p.hx + (p.tx - p.hx) * press;
+    const by = p.hy + (p.ty - p.hy) * press;
+    p.vx += (bx - p.x) * C.cloudSpring;
+    p.vy += (by - p.y) * C.cloudSpring;
+    p.vx *= 0.88; p.vy *= 0.88;
+    p.x += p.vx; p.y += p.vy;
+  }
+  // glyph clones launch row by row (line scan) once the relief phase starts
+  if (rr > 0) {
+    for (const p of P.gpts) {
+      const local = t - reliefAt() - p.delay;
+      if (local < 0) continue;
+      p.live = true;
+      const pr = smoothstep(local / 400);
+      const by = p.ry - p.hgt * C.lift * pr + Math.sin(t / 1600 + p.wp) * C.waveAmp * sway;
+      // stiff spring only while flying in; settled clones return from a
+      // mouse push as sluggishly as the background, without overshoot
+      const arrived = local > 900;
+      const k = arrived ? C.cloudSpring : C.flightSpring;
+      const damp = arrived ? 0.88 : 0.82;
+      p.vx += (p.rx - p.x) * k;
+      p.vy += (by - p.y) * k;
+      p.vx *= damp; p.vy *= damp;
+      p.x += p.vx; p.y += p.vy;
+    }
+  }
+}
+
+function frame(now) {
+  if (!P.started) P.started = now;
+  const t = now - P.started;
+  const dt = now - (P.last || now);
+  P.last = now;
+  const steps = Math.max(1, Math.min(6, Math.round(dt / 16.7)));
+  for (let k = 0; k < steps; k++) stepPhysics(t);
+  render(t);
+  requestAnimationFrame(frame);
+}
+
+function render(t) {
+  const w = P.w, h = P.h;
+  ctx.clearRect(0, 0, w, h);
+  const mx = P.mouse.x, my = P.mouse.y;
+
+  const rr = reducedMotion ? 1 : smoothstep((t - reliefAt()) / C.reliefDur);
+
+  // base cloud recedes a little once the clones form the glyph;
+  // draw in tone buckets to keep fillStyle switches cheap
+  ctx.globalAlpha = 1 - rr * C.cloudFade;
+  for (const tone of TONES) {
+    ctx.fillStyle = tone;
+    for (const p of P.pts) {
+      if (p.tone !== tone) continue;
+
+      // mouse gently displaces the cloud
+      const mdx = p.x - mx, mdy = p.y - my;
+      const md = Math.hypot(mdx, mdy);
+      if (md < C.mouseR) {
+        const push = (1 - md / C.mouseR) * C.mousePush;
+        p.x += (mdx / (md || 1)) * push;
+        p.y += (mdy / (md || 1)) * push;
+      }
+
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+  }
+  ctx.globalAlpha = 1;
+  for (const tone of TONES) {
+    ctx.fillStyle = tone;
+    for (const p of P.gpts) {
+      if (!p.live || p.tone !== tone) continue;
+      const mdx = p.x - mx, mdy = p.y - my;
+      const md = Math.hypot(mdx, mdy);
+      if (md < C.mouseR) {
+        const push = (1 - md / C.mouseR) * C.mousePush;
+        p.x += (mdx / (md || 1)) * push;
+        p.y += (mdy / (md || 1)) * push;
+      }
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+  }
+
+  // the modal waits until press, scan and clone flights are all done
+  if (finished()) showModal();
+}
+
+// window-level so the cloud reacts even under the modal or the panel
+addEventListener('mousemove', e => { P.mouse.x = e.clientX; P.mouse.y = e.clientY; });
+document.documentElement.addEventListener('mouseleave', () => { P.mouse.x = -1e9; P.mouse.y = -1e9; });
+document.getElementById('enterBtn').addEventListener('click', () => location.href = 'zoom.html');
+
+let resizeTimer;
+addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(init, 250);
+});
+
+// start once: the fonts promise occasionally never settles, so a timeout
+// backstop guarantees the animation runs (glyph uses system fonts anyway)
+function start() {
+  if (P.running) return;
+  P.running = true;
+  init();
+  requestAnimationFrame(frame);
+}
+document.fonts.load("600 100px 'EB Garamond'").then(start, start);
+setTimeout(start, 1200);
+
+// tuning panel: sections of sliders on C, any change replays the reveal
+const SECTIONS = [
+  ['Timing', [
+    ['pressAt', 'Druck-Start ms', 0, 4000, 100],
+    ['pressDur', 'Druck-Dauer ms', 500, 5000, 100],
+    ['reliefDelay', 'Scan-Verzögerung ms', 0, 2000, 50],
+    ['reliefDur', 'Relief-Rampe ms', 200, 3000, 100],
+  ]],
+  ['Wolke', [
+    ['density', 'px² pro Punkt', 30, 150, 5],
+    ['cloudSpring', 'Feder', 0.004, 0.03, 0.001],
+    ['cloudFade', 'Rückblendung', 0, 1, 0.05],
+  ]],
+  ['Schrift', [
+    ['glyphScale', 'Grösse', 0.4, 1, 0.05],
+    ['offsetY', 'Relief-Y px', -250, 250, 10],
+  ]],
+  ['Relief und Scan', [
+    ['lift', 'Hub px', 0, 60, 2],
+    ['reliefBlur', 'Wölbungs-Blur px', 4, 24, 1],
+    ['rowGap', 'Durchschuss px', 3, 12, 1],
+    ['colGap', 'Spaltenabstand px', 2, 8, 1],
+    ['scanDur', 'Scan-Dauer ms', 500, 4000, 100],
+    ['rowSweep', 'Sweep links–rechts ms', 0, 1000, 20],
+    ['flightSpring', 'Flug-Feder', 0.02, 0.12, 0.005],
+    ['waveAmp', 'Welle px', 0, 2, 0.1],
+  ]],
+  ['Maus', [
+    ['mouseR', 'Radius px', 40, 200, 10],
+    ['mousePush', 'Kraft', 0.5, 6, 0.1],
+  ]],
+];
+
+const DEFAULTS = { ...C };
+
+// ms sliders replay the reveal; cloud-structural sliders rebuild everything;
+// glyph-layer sliders rebuild only field and clones so the cloud stays put;
+// everything else (springs, wave, mouse) applies live without any rebuild
+const RESTART_KEYS = ['pressAt', 'pressDur', 'reliefDelay', 'reliefDur', 'scanDur', 'rowSweep'];
+const REBUILD_KEYS = ['density', 'glyphScale'];
+const GLYPH_KEYS = ['offsetY', 'reliefBlur', 'rowGap', 'colGap'];
+
+function restart() {
+  P.started = 0;
+  P.last = 0;
+  init();
+}
+
+function finished() {
+  return P.last - P.started > reliefAt() + C.scanDur + C.rowSweep + 1500;
+}
+
+function rebuild() {
+  init();
+  if (finished()) {
+    P.pts.forEach(p => { p.x = p.tx; p.y = p.ty; });
+    P.gpts.forEach(p => { p.x = p.rx; p.y = p.ry - p.hgt * C.lift; p.live = true; });
+  }
+}
+
+// glyph-layer-only rebuild: the background cloud keeps its points
+function rebuildGlyph() {
+  buildField();
+  buildGlyphLayer();
+  if (finished()) {
+    P.gpts.forEach(p => { p.x = p.rx; p.y = p.ry - p.hgt * C.lift; p.live = true; });
+  }
+}
+
+// json of everything deviating from the defaults, for copy-pasting back
+function updateCfgOut() {
+  const diff = {};
+  for (const k in C) if (C[k] !== DEFAULTS[k]) diff[k] = C[k];
+  document.getElementById('cfgOut').value = JSON.stringify(diff, null, 1);
+}
+
+let restartTimer;
+function buildPanel() {
+  const panel = document.getElementById('panel');
+  const frag = document.createDocumentFragment();
+  for (const [title, rows] of SECTIONS) {
+    const sec = document.createElement('div');
+    sec.className = 'sec';
+    sec.textContent = title;
+    const marker = document.createElement('span');
+    marker.textContent = '–';
+    sec.appendChild(marker);
+    frag.appendChild(sec);
+    const body = document.createElement('div');
+    body.className = 'body';
+    sec.addEventListener('click', () => {
+      body.classList.toggle('closed');
+      marker.textContent = body.classList.contains('closed') ? '+' : '–';
+    });
+    for (const [key, label, min, max, step] of rows) {
+      const row = document.createElement('label');
+      row.className = 'row';
+      const name = document.createElement('span');
+      name.textContent = label;
+      const reset = document.createElement('button');
+      reset.className = 'reset';
+      reset.type = 'button';
+      reset.textContent = '↺';
+      reset.title = 'Zurück auf ' + DEFAULTS[key];
+      const val = document.createElement('span');
+      val.className = 'val';
+      val.textContent = C[key];
+      const inp = document.createElement('input');
+      inp.type = 'range';
+      inp.min = min; inp.max = max; inp.step = step; inp.value = C[key];
+      const apply = v => {
+        C[key] = v;
+        val.textContent = v;
+        inp.value = v;
+        updateCfgOut();
+        clearTimeout(restartTimer);
+        if (RESTART_KEYS.includes(key)) {
+          restartTimer = setTimeout(restart, 160); // debounce slider drags
+        } else if (REBUILD_KEYS.includes(key)) {
+          restartTimer = setTimeout(rebuild, 160);
+        } else if (GLYPH_KEYS.includes(key)) {
+          restartTimer = setTimeout(rebuildGlyph, 160);
+        }
+      };
+      inp.addEventListener('input', () => apply(parseFloat(inp.value)));
+      reset.addEventListener('click', e => { e.preventDefault(); apply(DEFAULTS[key]); });
+      row.append(name, reset, val, inp);
+      body.appendChild(row);
+    }
+    frag.appendChild(body);
+  }
+  // modal on/off, default off
+  const modalRow = document.createElement('label');
+  modalRow.className = 'row';
+  modalRow.style.marginTop = '14px';
+  const modalName = document.createElement('span');
+  modalName.textContent = 'Modal einblenden';
+  const modalChk = document.createElement('input');
+  modalChk.type = 'checkbox';
+  modalChk.checked = C.showModal;
+  modalChk.style.float = 'right';
+  modalChk.addEventListener('change', () => {
+    C.showModal = modalChk.checked;
+    if (!C.showModal) {
+      P.settledShown = false;
+      document.getElementById('overlay').classList.remove('shown');
+    }
+    updateCfgOut();
+  });
+  modalRow.append(modalName, modalChk);
+  frag.appendChild(modalRow);
+
+  const out = document.createElement('textarea');
+  out.id = 'cfgOut';
+  out.readOnly = true;
+  out.value = '{}';
+  frag.appendChild(out);
+  const hint = document.createElement('div');
+  hint.id = 'cfgHint';
+  const HINT = 'Klick ins JSON kopiert es. Leertaste spielt neu ab.';
+  hint.textContent = HINT;
+  frag.appendChild(hint);
+  // click selects and copies the whole json
+  let hintTimer;
+  out.addEventListener('click', () => {
+    out.select();
+    navigator.clipboard.writeText(out.value).then(() => {
+      hint.textContent = 'Kopiert.';
+      clearTimeout(hintTimer);
+      hintTimer = setTimeout(() => { hint.textContent = HINT; }, 1500);
+    });
+  });
+  panel.appendChild(frag);
+  document.getElementById('panelToggle').addEventListener('click', () => {
+    document.body.classList.toggle('panel-closed');
+  });
+}
+buildPanel();
+
+addEventListener('keydown', e => {
+  if (e.code === 'Space' && e.target.tagName !== 'TEXTAREA') {
+    e.preventDefault();
+    restart();
+  }
+  // a/b test for stutter diagnosis: toggle the modal backdrop filter
+  if (e.code === 'KeyB') document.body.classList.toggle('no-backdrop');
+});
+</script>
+</body>
+</html>

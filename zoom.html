@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2^256, Zoom durch die Grössenordnungen</title>
+<style>
+  @font-face {
+    font-family: 'EB Garamond';
+    src: url('fonts/EBGaramond-latin.woff2') format('woff2');
+    font-weight: 400 700;
+    font-display: swap;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: #ece2cd;
+    color: #8a7a5e;
+    font-family: ui-sans-serif, system-ui, sans-serif;
+    font-size: 14px;
+    overflow: hidden;
+  }
+
+  /* fixed stage: the modal fills the viewport with a page margin */
+  .stage {
+    position: fixed;
+    inset: 16px;
+    border: 1px solid rgba(110,92,64,0.25);
+    border-radius: 4px;
+    background: #ece2cd;
+    display: grid;
+    grid-template-rows: auto 1fr;
+    overflow: hidden;
+  }
+
+  /* ---- header: the exponent pair, always visible, only its values change ---- */
+  .readout {
+    position: relative;
+    display: flex;
+    align-items: baseline;
+    gap: 18px;
+    padding: 18px 24px 16px;
+    border-bottom: 1px solid rgba(110,92,64,0.25);
+  }
+  .lang {
+    position: absolute;
+    top: 6px;
+    right: 24px;
+    display: flex;
+    gap: 6px;
+    font: 400 11px ui-sans-serif, system-ui, sans-serif;
+  }
+  .lang button {
+    background: none; border: none; padding: 0;
+    font: inherit; letter-spacing: 0.08em;
+    color: #8a7a5e; cursor: pointer;
+  }
+  .lang button.active { color: #5c4a34; font-weight: 600; }
+  .lang button:hover { text-decoration: underline; }
+  .lang .sep { color: rgba(110,92,64,0.4); }
+  .readout .power {
+    font-family: 'EB Garamond', serif;
+    font-size: 56px;
+    line-height: 1;
+    color: #5c4a34;
+  }
+  .readout .approx {
+    font-family: 'EB Garamond', serif;
+    font-size: 36px;
+    line-height: 1;
+    color: #8a7a5e;
+  }
+  .readout sup { font-size: 0.55em; vertical-align: super; line-height: 0; }
+  .readout .count { font-size: 14px; align-self: flex-end; padding-bottom: 4px; }
+  .readout .station {
+    margin-left: auto;
+    font-family: 'EB Garamond', serif;
+    font-size: 30px;
+    font-weight: 600;
+    color: #5c4a34;
+  }
+
+  /* ---- body: scale | text | plate ---- */
+  .body {
+    display: grid;
+    grid-template-columns: 92px 1fr 1fr;
+    min-height: 0;
+  }
+
+  /* ---- scale column: one rail, evenly spaced stations ---- */
+  .scale {
+    position: relative;
+    border-right: 1px solid rgba(110,92,64,0.25);
+  }
+  .scale svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .scale .rail-line { stroke: rgba(110,92,64,0.4); fill: none; }
+  .scale .tick { stroke: rgba(110,92,64,0.4); }
+
+  .scale .label {
+    position: absolute;
+    left: 4px;
+    right: 44px;
+    padding: 6px 8px 6px 0;   /* target height stays under the row spacing so rows cannot overlap */
+    border-radius: 4px;
+    text-align: right;
+    font-size: 12px;
+    white-space: nowrap;
+    color: #5c4a34;
+    transform: translateY(-50%);
+  }
+  .scale .label:hover { background: rgba(110,92,64,0.12); cursor: pointer; }
+  /* native vertical range: the thumb is the knob, so drag, click and keys come for free.
+     The box is grown by one thumb at both ends so thumb centres meet the rail ticks. */
+  .scale .slider {
+    position: absolute;
+    left: 51.5px;              /* EVEN_X 66 minus half a thumb */
+    width: 29px;
+    top: calc(4.2% - 14.5px);
+    height: calc(91.6% + 29px);
+    margin: 0;
+    writing-mode: vertical-lr; /* min at the top; adding direction:rtl would flip it */
+    appearance: none;
+    background: none;
+  }
+  .scale .slider::-webkit-slider-runnable-track { background: none; }
+  .scale .slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 29px;
+    height: 29px;
+    /* inverted like an active nav-button: the one grabbable thing on the page
+       must outrank the passive ticks, so it carries the page's strongest contrast */
+    border: 1px solid #5c4a34;
+    border-radius: 4px;
+    background:
+      repeating-linear-gradient(rgba(242,234,214,0.5) 0 1px, transparent 1px 6px) content-box,
+      linear-gradient(#5c4a34, #5c4a34) padding-box;
+    box-sizing: border-box;
+    padding: 7px 6px;
+    cursor: grab;
+  }
+  .scale .slider:active::-webkit-slider-thumb { cursor: grabbing; }
+  .scale .slider:focus { outline: none; }
+  .scale .slider:focus-visible::-webkit-slider-thumb {
+    outline: 1px solid rgba(120,70,40,0.85);
+    outline-offset: 2px;
+  }
+
+  /* ---- text column: the slider drives the track offset ---- */
+  .text {
+    position: relative;
+    border-right: 1px solid rgba(110,92,64,0.25);
+    overflow: hidden;
+  }
+  .text .track {
+    padding: 40px 28px 40px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 34px;
+    transition: transform 620ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .entry {
+    max-width: 56ch;
+    padding-left: 14px;
+    border-left: 1px solid transparent;
+    opacity: 0.3;
+    transition: opacity 420ms ease-out, border-left-color 420ms ease-out;
+  }
+  .entry.current { opacity: 1; border-left-color: rgba(150,90,50,0.95); }
+  .entry h2 {
+    font-family: 'EB Garamond', serif;
+    font-size: 24px;
+    font-weight: 600;
+    color: #5c4a34;
+    margin-bottom: 2px;
+  }
+  .entry .meta { font-size: 14px; margin-bottom: 12px; }
+  .entry p {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #6b5a42;
+    margin-bottom: 8px;
+  }
+  .entry .factor { font-size: 14px; color: rgba(150,90,50,0.95); }
+  .fade-top, .fade-bottom {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 64px;
+    pointer-events: none;
+  }
+  .fade-top { top: 0; background: linear-gradient(#ece2cd, rgba(236,226,205,0)); }
+  .fade-bottom { bottom: 0; background: linear-gradient(rgba(236,226,205,0), #ece2cd); }
+
+  /* ---- plate: images enter from the right, leave to the left ---- */
+  .plate { position: relative; overflow: hidden; }
+  .slot {
+    position: absolute;
+    top: 50%;
+    left: 8%;
+    width: 84%;
+    transform: translate(0, -50%);
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    justify-content: center;
+  }
+  .frame {
+    flex: 1;
+    aspect-ratio: 1 / 1;
+    max-height: 62vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+  .frame .label {
+    font-family: 'EB Garamond', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: #5c4a34;
+    text-align: center;
+    padding: 0 10px;
+  }
+  .frame .hint { font-size: 12px; }
+  .frame .art { width: 97.5%; height: auto; }
+
+  @media (max-width: 900px) {
+    .body { grid-template-columns: 92px 1fr; }
+    .plate { display: none; }
+  }
+  /* below this the rows are closer than a line of type: thin the labels out */
+  @media (max-height: 420px) {
+    .scale .label:not(.accent) { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .text .track, .entry { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="readout" id="readout">
+    <span class="power" id="power"></span>
+    <span class="approx" id="approx"></span>
+    <span class="count" id="count"></span>
+    <span class="station" id="station"></span>
+    <div class="lang" aria-label="Sprache">
+      <button data-lang="de">DE</button><span class="sep">|</span><button data-lang="en">EN</button>
+    </div>
+  </div>
+
+  <div class="body">
+    <div class="scale" id="scale">
+      <svg viewBox="0 0 92 1000" preserveAspectRatio="none" aria-hidden="true"></svg>
+      <input class="slider" id="slider" type="range" min="0" max="1" step="1" value="0"
+             autocomplete="off" aria-label="Station wählen">
+    </div>
+
+    <div class="text" id="text">
+      <div class="track" id="track"></div>
+      <div class="fade-top"></div>
+      <div class="fade-bottom"></div>
+    </div>
+
+    <div class="plate" id="plate">
+    </div>
+  </div>
+</div>
+
+<script>
+// exp: leading exponent of the station. span: true range for merged stations.
+// The slider walks the array index, the left rail plots exp on a true 0..256 scale.
+const STATIONS = [
+  { exp: 0, name: 'Ein Atom', approx: '10<sup>0</sup>', count: 'ein Atom',
+    images: [{ label: 'Ein Atom', src: 'assets/atom-02.svg' }],
+    text: ['Zwölf oder vierundzwanzig Wörter, aus denen dein Wallet jeden Schlüssel ableitet. Auf dieser Reise ist ein Seed ein Atom.'] },
+
+  { exp: 10, name: 'Kleines Protein', approx: '10<sup>3</sup>', count: '1’024 Atome',
+    factor: '×1’024 gegenüber dem einzelnen Atom',
+    images: [{ label: 'Insulin, zwei Peptidketten', src: 'assets/protein-insulin.png' }],
+    text: ['Tausend Atome ergeben ein Protein von siebzig Aminosäuren, etwa Insulin.'] },
+
+  { exp: 20, name: 'Kleines Virus', approx: '10<sup>6</sup>', count: 'eine Million Atome',
+    factor: '×1’024 gegenüber dem Protein',
+    images: [{ label: 'Poliovirus-Kapsid, Molekülmodell', src: 'assets/polio-virus.png' }],
+    text: ['Ein Poliovirus, dreissig Nanometer. Von aussen ein Nichts, innen eine Million Bausteine.'] },
+
+  { exp: 30, name: 'Grosses Virus', approx: '10<sup>9</sup>', count: 'eine Milliarde Atome',
+    factor: '×1’024 gegenüber dem kleinen Virus',
+    images: [{ label: 'Pockenvirus unter dem Elektronenmikroskop', src: 'assets/cowpox-virus.png' }],
+    text: ['Ein Pockenvirus hat so viele Atome, wie die Erde Menschen hat. Dreissig von zweihundertsechsundfünfzig Schritten.'] },
+
+  { exp: 37, name: 'Bakterie', approx: '10<sup>11,1</sup>', count: 'hundert Milliarden Atome',
+    factor: '×130 gegenüber dem grossen Virus',
+    images: [{ label: 'E.-coli-Bakterien unter dem Rasterelektronenmikroskop', src: 'assets/e-coli.png' }],
+    text: ['Ein Darmbakterium, ein Billionstel Gramm, hundert Pockenviren schwer.'] },
+
+  { exp: 40, name: 'Die Coldcard-Lücke', approx: '10<sup>12</sup>', count: 'eine Billion Atome',
+    accent: true, factor: '×8 gegenüber der Bakterie',
+    images: [{ label: 'Coldcard-Hardware-Wallets Q und Mk5', src: 'assets/coldcard-sepia.png' }],
+    text: [
+      'Zehn Bakterien, elf Billionstelgramm. Noch nicht einmal ein Staubkorn und trotzdem der teuerste Punkt der Skala.',
+      'Ein Firmware-Bug liess die Coldcards ihre Seeds aus 2<sup>40</sup> statt 2<sup>128</sup> Möglichkeiten ziehen. 2<sup>40</sup> Kandidaten durchzuprobieren kostet mit heutiger Hardware einen Tag Rechenzeit. Am 31. Juli 2026 verschwanden so 594 Bitcoin aus fünfhundert Wallets, inzwischen sind es über 1’300.',
+      'Betroffen ist jede Coldcard seit März 2021. Coinkite-Chef NVK räumte öffentlich ein, man sei bei der eigenen Kernaufgabe gescheitert, und rät, den Seed zu ersetzen und umzuziehen; ein Firmware-Update repariert ihn nicht. Aussen vor ist nur, wer fünfzig eigene Würfelwürfe eingab. Geräte anderer Hersteller, etwa die BitBox02, sind nicht betroffen.'] },
+
+  { exp: 47, name: 'Menschliche Zelle', approx: '10<sup>14,1</sup>', count: '200 Billionen Atome',
+    factor: '×128 gegenüber zehn Bakterien',
+    images: [{ label: 'Frisch geteilte HeLa-Zellen, Rasterelektronenmikroskopie', src: 'assets/nih-hela.png' }],
+    text: ['Zweitausend Kubikmikrometer. Die erste Stufe, die man im Mikroskop sieht.'] },
+
+  { exp: 60, name: 'Sandkorn', approx: '10<sup>18,1</sup>', count: 'eine Trillion Atome',
+    factor: '×8’000 gegenüber der Zelle',
+    images: [{ label: 'Korallensand aus Bermuda, Makroaufnahme', src: 'assets/bermuda-sand.png' }],
+    text: ['Ein feines Quarzkorn, drei Zehntelmillimeter. Halber Weg zu 2<sup>128</sup>.'] },
+
+  { exp: 72, name: 'Wassertropfen', approx: '10<sup>21,7</sup>', count: '5 Trilliarden Atome',
+    factor: '×4’000 gegenüber dem Sandkorn',
+    images: [{ label: 'Regentropfen auf einer Fensterscheibe', src: 'assets/rain-window.png' }],
+    text: ['Fünf Hundertstelgramm, wie er von einer Pipette fällt.'] },
+
+  { exp: 92, name: 'Ein Mensch', approx: '10<sup>27,7</sup>', count: '7 Quadrilliarden Atome',
+    factor: '×1,4 Millionen gegenüber dem Tropfen',
+    images: [{ label: 'Porträt von Nowadluk Ootenna, 1907', src: 'assets/inuit-woman-1907.png' }],
+    text: ['Siebzig Kilogramm, zu zwei Dritteln Wasser. Jedes Atom in dir steht für einen anderen Seed.'] },
+
+  { exp: 128, span: [125, 128], name: 'Menschheit und Zürichsee', approx: '10<sup>38,5</sup>',
+    count: 'eine 39-stellige Zahl', accent: true,
+    factor: '×8 Milliarden zur Menschheit, dann ×7 zum See',
+    images: [{ label: 'Porträt-Collage: sechzehn Menschen', src: 'assets/collage-ethnic-groups.png' },
+             { label: 'Seekörper des Zürichsees', src: 'assets/zuerichsee.png' }],
+    text: [
+      'Von einem Menschen zu allen acht Milliarden sind es dreiunddreissig Verdoppelungen, 2<sup>125</sup>. Sieben weitere, und wir stehen beim Zürichsee: 3,9 Kubikkilometer Wasser.',
+      'Hier liegt Bitcoins effektive Sicherheit, so viel kostet der beste bekannte Angriff auf einen öffentlichen Schlüssel. Ein Atom im ganzen See, das ist dein Seed.'] },
+
+  { exp: 140, name: 'Oberer See', approx: '10<sup>42,1</sup>', count: 'eine 43-stellige Zahl',
+    factor: '×3’100 gegenüber dem Zürichsee',
+    images: [{ label: 'Vermessungskarte des Oberen Sees, 1867', src: 'assets/lake-superior-1867.png' }],
+    text: [
+      'Der grösste der Grossen Seen, im Englischen Lake Superior, liegt zwischen den USA und Kanada. 12’100 Kubikkilometer Wasser, ein Zehntel des flüssigen Süsswassers der Erde. Er fasst dreitausendeinhundert Zürichseen.'] },
+
+  { exp: 160, span: [157, 166], name: 'Ozeane und Mond', approx: '10<sup>48,2</sup>',
+    count: 'eine 49-stellige Zahl', accent: true,
+    factor: '×1,7 Millionen gegenüber dem Oberen See',
+    images: [{ label: 'Die Erde, Blue-Marble-Kompositaufnahme', src: 'assets/earth-blue-marble.png' }],
+    text: [
+      'Alle Ozeane, 1,35 Trillionen Tonnen Wasser, ergeben 2<sup>157</sup> Atome. Achtmal so viele hat der Mond, und das ist der Bitcoin-Adressraum: eine Adresse ist ein 160-Bit-Hash.',
+      'Die Erde hat fünfundsechzig Mal mehr Atome als der Mond und liegt bei 2<sup>166</sup>.'] },
+
+  { exp: 180, name: 'Jupiter', approx: '10<sup>54,2</sup>', count: 'eine 54-stellige Zahl',
+    factor: '×6’500 gegenüber der Erde',
+    images: [{ label: 'Jupiter, Hubble-Aufnahme', src: 'assets/jupiter-hubble.png' }],
+    text: ['Dreihundertachtzehn Erdmassen, aber sechstausendfünfhundert Mal mehr Atome. Wasserstoff ist leicht, und leichte Atome zählen mehr.'] },
+
+  { exp: 189, span: [189, 192], name: 'Die Sonne', approx: '10<sup>56,9</sup>',
+    count: 'eine 57-stellige Zahl', factor: '×512 gegenüber Jupiter',
+    images: [{ label: 'Die Sonne mit Flare, SDO-Aufnahme', src: 'assets/solar-flare.png' }],
+    text: [
+      'Tausend Jupiter ergeben eine Sonne.',
+      'Drei Schritte darüber, bei fünf Sonnen, endet die Physik: Wer die Energie unserer Sonne aus zweiunddreissig Jahren perfekt einsetzt, kann damit 2<sup>192</sup> Zustände durchzählen. Nicht rechnen, bloss zählen.'] },
+
+  { exp: 225, name: 'Milchstrasse', approx: '10<sup>67,8</sup>', count: 'eine 68-stellige Zahl',
+    factor: '×70 Milliarden gegenüber der Sonne',
+    images: [{ label: 'Spiralgalaxie Messier 64, stellvertretend für die Milchstrasse', src: 'assets/milkyway-bg.png' }],
+    text: ['Hundert Milliarden Sterne. Der grösste Sprung der Reise, dazwischen liegt nichts, was einen Namen hätte.'] },
+
+  { exp: 256, name: 'Zwei Milliarden Galaxien', approx: '10<sup>77,1</sup>',
+    count: 'eine 78-stellige Zahl', accent: true,
+    factor: '×2,1 Milliarden gegenüber der Milchstrasse',
+    images: [{ label: 'Webbs erstes Deep Field, Galaxienhaufen SMACS 0723', src: 'assets/deep-field.png' }],
+    text: [
+      'Erst hier ist der Schlüsselraum voll: 2,1 Milliarden Galaxien von der Grösse unserer eigenen.',
+      'Jeder Bitcoin-Schlüssel, den es geben kann, ist ein Atom davon.'] },
+
+  { exp: 266, name: 'Das sichtbare Universum', approx: '10<sup>80,1</sup>',
+    count: 'eine 81-stellige Zahl',
+    factor: '×1’024 gegenüber dem Schlüsselraum 2<sup>256</sup>',
+    images: [{ label: 'Das sichtbare Universum, logarithmische Illustration von Pablo Carlos Budassi', src: 'assets/observable-universe.png' }],
+    text: [
+      'Rund 10<sup>80</sup> Atome, zweitausend Milliarden Galaxien. Zehn Schritte über dem Schlüsselraum von 2<sup>256</sup>, und hier endet die Reise, denn weiter reicht das Beobachtbare nicht.',
+      'Anders gesagt: Etwa jedes tausendste Atom im Universum ist ein Bitcoin-Schlüssel.'] }
+];
+
+// English text layer, keyed by station exponent; German is the source of truth in STATIONS.
+// labels[] follows the order of images[]. Long-scale German numbers become short-scale English.
+const EN = {
+  0: { name: 'One atom', count: 'one atom', labels: ['One atom'],
+    text: ['Twelve or twenty-four words from which your wallet derives every key. On this journey, one seed is one atom.'] },
+  10: { name: 'Small protein', count: '1,024 atoms', factor: '×1,024 over the single atom',
+    labels: ['Insulin, two peptide chains'],
+    text: ['A thousand atoms make a protein of seventy amino acids, insulin for instance.'] },
+  20: { name: 'Small virus', count: 'a million atoms', factor: '×1,024 over the protein',
+    labels: ['Poliovirus capsid, molecular model'],
+    text: ['A poliovirus, thirty nanometres. Nothing from the outside, a million building blocks within.'] },
+  30: { name: 'Large virus', count: 'a billion atoms', factor: '×1,024 over the small virus',
+    labels: ['Pox virus under the electron microscope'],
+    text: ['A pox virus has as many atoms as Earth has people. Thirty of two hundred and fifty-six steps.'] },
+  37: { name: 'Bacterium', count: 'a hundred billion atoms', factor: '×130 over the large virus',
+    labels: ['E. coli bacteria under the scanning electron microscope'],
+    text: ['A gut bacterium, a trillionth of a gram, as heavy as a hundred pox viruses.'] },
+  40: { name: 'The Coldcard gap', count: 'a trillion atoms', factor: '×8 over the bacterium',
+    labels: ['Coldcard hardware wallets Q and Mk5'],
+    text: [
+      'Ten bacteria, eleven trillionths of a gram. Not even a grain of dust, and still the most expensive point on this scale.',
+      'A firmware bug made Coldcards draw their seeds from 2<sup>40</sup> instead of 2<sup>128</sup> possibilities. Working through 2<sup>40</sup> candidates costs about a day of computing on today’s hardware. On 31 July 2026, 594 bitcoin vanished from five hundred wallets this way; by now it is more than 1,300.',
+      'Every Coldcard since March 2021 is affected. Coinkite CEO NVK publicly admitted the company had failed at its core task and advises replacing the seed and moving on; a firmware update does not repair it. Only those who entered fifty of their own dice rolls are exempt. Devices by other makers, such as the BitBox02, are not affected.'] },
+  47: { name: 'Human cell', count: '200 trillion atoms', factor: '×128 over ten bacteria',
+    labels: ['Freshly divided HeLa cells, scanning electron microscopy'],
+    text: ['Two thousand cubic micrometres. The first step you can see under a microscope.'] },
+  60: { name: 'Grain of sand', count: 'a quintillion atoms', factor: '×8,000 over the cell',
+    labels: ['Coral sand from Bermuda, macro photograph'],
+    text: ['A fine grain of quartz, three tenths of a millimetre. Halfway to 2<sup>128</sup>.'] },
+  72: { name: 'Drop of water', count: '5 sextillion atoms', factor: '×4,000 over the grain of sand',
+    labels: ['Raindrops on a window pane'],
+    text: ['Five hundredths of a gram, the way it falls from a pipette.'] },
+  92: { name: 'One human', count: '7 octillion atoms', factor: '×1.4 million over the drop',
+    labels: ['Portrait of Nowadluk Ootenna, 1907'],
+    text: ['Seventy kilograms, two thirds water. Every atom in you stands for a different seed.'] },
+  128: { name: 'Humanity and Lake Zurich', count: 'a 39-digit number',
+    factor: '×8 billion to humanity, then ×7 to the lake',
+    labels: ['Portrait collage: sixteen people', 'Body of Lake Zurich'],
+    text: [
+      'From one human to all eight billion is thirty-three doublings, 2<sup>125</sup>. Seven more, and we stand at Lake Zurich: 3.9 cubic kilometres of water.',
+      'This is Bitcoin’s effective security, the price of the best known attack on a public key. One atom in the whole lake, that is your seed.'] },
+  140: { name: 'Lake Superior', count: 'a 43-digit number', factor: '×3,100 over Lake Zurich',
+    labels: ['Survey map of Lake Superior, 1867'],
+    text: ['The largest of the Great Lakes, between the United States and Canada. 12,100 cubic kilometres of water, a tenth of Earth’s liquid fresh water. It holds three thousand one hundred Lake Zurichs.'] },
+  160: { name: 'Oceans and Moon', count: 'a 49-digit number', factor: '×1.7 million over Lake Superior',
+    labels: ['Earth, Blue Marble composite'],
+    text: [
+      'All the oceans, 1.35 quintillion tonnes of water, come to 2<sup>157</sup> atoms. The Moon has eight times as many, and that is the Bitcoin address space: an address is a 160-bit hash.',
+      'Earth has sixty-five times more atoms than the Moon and sits at 2<sup>166</sup>.'] },
+  180: { name: 'Jupiter', count: 'a 54-digit number', factor: '×6,500 over Earth',
+    labels: ['Jupiter, Hubble image'],
+    text: ['Three hundred and eighteen Earth masses, but six thousand five hundred times more atoms. Hydrogen is light, and light atoms count for more.'] },
+  189: { name: 'The Sun', count: 'a 57-digit number', factor: '×512 over Jupiter',
+    labels: ['The Sun with a flare, SDO image'],
+    text: [
+      'A thousand Jupiters make one Sun.',
+      'Three steps above, at five Suns, physics ends: spending the energy of our Sun from thirty-two years perfectly, you could count through 2<sup>192</sup> states. Not compute, just count.'] },
+  225: { name: 'Milky Way', count: 'a 68-digit number', factor: '×70 billion over the Sun',
+    labels: ['Spiral galaxy Messier 64, standing in for the Milky Way'],
+    text: ['A hundred billion stars. The longest leap of the journey; in between lies nothing that has a name.'] },
+  256: { name: 'Two billion galaxies', count: 'a 78-digit number', factor: '×2.1 billion over the Milky Way',
+    labels: ['Webb’s first deep field, galaxy cluster SMACS 0723'],
+    text: [
+      'Only here is the keyspace full: 2.1 billion galaxies the size of our own.',
+      'Every Bitcoin key that can exist is one atom of it.'] },
+  266: { name: 'The observable universe', count: 'an 81-digit number',
+    factor: '×1,024 over the 2<sup>256</sup> keyspace',
+    labels: ['The observable universe, logarithmic illustration by Pablo Carlos Budassi'],
+    text: [
+      'Around 10<sup>80</sup> atoms, two thousand billion galaxies. Ten steps above the 2<sup>256</sup> keyspace, and here the journey ends, for the observable reaches no further.',
+      'Put differently: roughly one atom in a thousand in the universe is a Bitcoin key.'] },
+};
+
+let lang = localStorage.getItem('lang') || 'de';
+const tr = s => lang === 'de' ? s
+  : { ...s, ...EN[s.exp], approx: s.approx.replace(',', '.'),
+      images: s.images.map((im, k) => ({ ...im, label: EN[s.exp].labels[k] })) };
+
+const CALM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const T_PLATE = CALM ? 0 : 620;
+const T_READ = CALM ? 0 : 170;
+const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
+
+let current = 0;
+
+const $ = id => document.getElementById(id);
+const [readout, power, approx, count, station, scale, slider, track, plate, text] =
+  ['readout', 'power', 'approx', 'count', 'station', 'scale', 'slider', 'track', 'plate', 'text'].map($);
+
+const RAIL_TOP = 42, RAIL_BOTTOM = 958, EVEN_X = 66;
+const yEven = i => RAIL_TOP + (RAIL_BOTTOM - RAIL_TOP) * i / (STATIONS.length - 1);
+const svgNs = 'http://www.w3.org/2000/svg';
+
+function drawScale() {
+  const svg = scale.querySelector('svg');
+  const add = (parent, attrs, cls) => {
+    const el = document.createElementNS(svgNs, 'line');
+    for (const k in attrs) el.setAttribute(k, attrs[k]);
+    el.setAttribute('vector-effect', 'non-scaling-stroke');
+    el.setAttribute('class', cls);
+    parent.appendChild(el);
+  };
+
+  add(svg, { x1: EVEN_X, y1: RAIL_TOP, x2: EVEN_X, y2: RAIL_BOTTOM }, 'rail-line');
+
+  STATIONS.forEach((s, i) => {
+    const ye = yEven(i);
+    add(svg, { x1: EVEN_X - 6, y1: ye, x2: EVEN_X + 6, y2: ye }, 'tick');
+
+    const label = document.createElement('div');
+    label.className = 'label' + (s.accent ? ' accent' : '');
+    label.innerHTML = '2<sup>' + s.exp + '</sup>';
+    label.style.top = (100 * ye / 1000) + '%';
+    label.addEventListener('click', () => goTo(i));
+    scale.appendChild(label);
+  });
+}
+
+function drawText() {
+  const atoms = lang === 'de' ? 'Atome' : 'atoms';
+  track.innerHTML = STATIONS.map(raw => {
+    const s = tr(raw);
+    return `
+    <div class="entry">
+      <h2>${s.name}</h2>
+      <div class="meta">2<sup>${s.exp}</sup> ≈ ${s.approx} ${atoms}</div>
+      ${s.text.map(p => `<p>${p}</p>`).join('')}
+      ${s.factor ? `<div class="factor">${s.factor}</div>` : ''}
+    </div>`;
+  }).join('');
+  measureText();
+}
+
+// offsets that put an entry's centre on the reading line; recomputed whenever the text reflows
+let offsets = [];
+function measureText() {
+  const half = track.parentElement.clientHeight / 2;
+  offsets = [...track.children].map(e => e.offsetTop + e.offsetHeight / 2 - half);
+}
+
+function showText(i) {
+  [...track.children].forEach((e, k) => e.classList.toggle('current', k === i));
+  track.style.transform = `translateY(${-offsets[i]}px)`;
+}
+
+// the plate keeps exactly one live slot; the outgoing one leaves opposite to the travel direction
+function showPlate(i, dir) {
+  plate.querySelectorAll('.slot.out').forEach(el => el.remove());
+  const old = plate.querySelector('.slot');
+  const slot = document.createElement('div');
+  slot.className = 'slot';
+  slot.innerHTML = tr(STATIONS[i]).images.map(n => typeof n === 'string'
+    ? `<div class="frame"><span class="label">${n}</span><span class="hint">Bild folgt</span></div>`
+    : `<div class="frame"><img class="art" src="${n.src}" alt="${n.label}"></div>`
+  ).join('');
+  plate.appendChild(slot);
+
+  if (!old || !T_PLATE) { old?.remove(); return; }
+  const from = dir >= 0 ? 80 : -80;
+  slot.animate([
+    { transform: `translate(${from}%, -50%)`, opacity: 0 },
+    { transform: 'translate(0, -50%)', opacity: 1 }
+  ], { duration: T_PLATE, easing: EASE });
+  old.classList.add('out');
+  old.animate([
+    { transform: 'translate(0, -50%)', opacity: 1 },
+    { transform: `translate(${-from}%, -50%)`, opacity: 0 }
+  ], { duration: T_PLATE, easing: EASE, fill: 'forwards' })
+    .finished.then(() => old.remove(), () => {});
+}
+
+// the readout dips instead of cutting; seq drops swaps overtaken by a newer one
+let seq = 0;
+function showReadout(i) {
+  const write = () => {
+    const s = tr(STATIONS[i]);
+    power.innerHTML = '2<sup>' + s.exp + '</sup>';
+      approx.innerHTML = '≈ ' + s.approx;
+    count.textContent = s.count;
+    station.textContent = s.name;
+  };
+  if (!T_READ) return write();
+  const mine = ++seq;
+  readout.getAnimations().forEach(a => a.cancel());
+  readout.animate([{ opacity: 1 }, { opacity: 0.15 }, { opacity: 1 }],
+    { duration: 2 * T_READ, easing: 'ease-in-out' });
+  setTimeout(() => { if (mine === seq) write(); }, T_READ);
+}
+
+function goTo(i, dir) {
+  i = Math.max(0, Math.min(STATIONS.length - 1, i));
+  if (i === current) return;
+  dir = dir ?? Math.sign(i - current);
+  current = i;
+  slider.value = i;
+  showReadout(i);
+  showText(i);
+  showPlate(i, dir);
+}
+
+drawScale();
+drawText();
+showText(current);
+showPlate(current, 1);
+showReadout(current);
+
+// one station costs a fixed amount of scrolling, so a flick does not race through the list
+const WHEEL_STEP = 500;
+const WHEEL_IDLE = 400;
+const WHEEL_COOLDOWN = 260;
+let wheelSum = 0, wheelSeen = 0, wheelAt = 0;
+
+function onWheel(e) {
+  e.preventDefault();
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // vertical gestures only
+  const now = performance.now();
+  const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+  if (now - wheelSeen > WHEEL_IDLE || Math.sign(dy) !== Math.sign(wheelSum)) wheelSum = 0;
+  wheelSeen = now;
+  wheelSum += dy;
+  if (Math.abs(wheelSum) < WHEEL_STEP || now - wheelAt < WHEEL_COOLDOWN) return;
+  const dir = Math.sign(wheelSum);
+  wheelSum = 0;
+  wheelAt = now;
+  goTo(current + dir, dir);
+}
+[text, plate, scale].forEach(el => el.addEventListener('wheel', onWheel, { passive: false }));
+
+slider.max = STATIONS.length - 1;
+slider.value = current;
+slider.addEventListener('input', () => goTo(+slider.value));
+
+// language switch: re-renders text, readout and plate in place; the station is kept
+const langBtns = document.querySelectorAll('.lang button');
+function setLang(l, init) {
+  lang = l;
+  localStorage.setItem('lang', l);
+  document.documentElement.lang = l === 'de' ? 'de-CH' : 'en';
+  document.title = l === 'de' ? '2^256, Zoom durch die Grössenordnungen'
+                              : '2^256, a zoom through the orders of magnitude';
+  slider.setAttribute('aria-label', l === 'de' ? 'Station wählen' : 'Choose a station');
+  langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  if (init) return;                         // first render below already uses `lang`
+  drawText();
+  const t = track.style.transition;
+  track.style.transition = 'none';
+  showText(current);
+  track.offsetHeight;
+  track.style.transition = t;
+  plate.querySelector('.slot')?.remove();   // swap the plate without a travel animation
+  showPlate(current, 1);
+  showReadout(current);
+}
+setLang(lang, true);
+langBtns.forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
+
+addEventListener('keydown', e => {
+  if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+  e.preventDefault();                       // keep the focused slider from double-stepping
+  const dir = e.key === 'ArrowDown' ? 1 : -1;
+  goTo(current + dir, dir);
+});
+
+addEventListener('resize', () => {
+  measureText();
+  const t = track.style.transition;
+  track.style.transition = 'none';
+  showText(current);
+  track.offsetHeight;
+  track.style.transition = t;
+});
+</script>
+</body>
+</html>
