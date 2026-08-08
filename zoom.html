@@ -455,7 +455,15 @@ const EN = {
       'Put differently: roughly one atom in a thousand in the universe is a Bitcoin key.'] },
 };
 
-let lang = localStorage.getItem('lang') || 'en';
+// deep links: #<lang>/<station>, e.g. #de/coldcard, #en/milky-way or #de/40 (exponent)
+const SLUGS = ['atom', 'protein', 'small-virus', 'large-virus', 'bacterium', 'coldcard',
+  'cell', 'sand-grain', 'drop', 'human', 'humanity', 'lake-superior', 'oceans-moon',
+  'jupiter', 'sun', 'milky-way', 'galaxies', 'universe'];
+const hashParts = location.hash.slice(1).toLowerCase().split('/').filter(Boolean);
+const hashLang = hashParts.find(p => p === 'de' || p === 'en');
+const hashStation = hashParts.find(p => p !== 'de' && p !== 'en');
+
+let lang = hashLang || localStorage.getItem('lang') || 'en';
 const tr = s => lang === 'de' ? s
   : { ...s, ...EN[s.exp], approx: s.approx.replace(',', '.'),
       images: s.images.map((im, k) => ({ ...im, label: EN[s.exp].labels[k] })) };
@@ -465,7 +473,11 @@ const T_PLATE = CALM ? 0 : 620;
 const T_READ = CALM ? 0 : 170;
 const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
-let current = 0;
+let current = SLUGS.indexOf(hashStation);
+if (current < 0) current = STATIONS.findIndex(s => String(s.exp) === hashStation);
+if (current < 0) current = 0;
+
+const updateHash = () => history.replaceState(null, '', '#' + lang + '/' + SLUGS[current]);
 
 const $ = id => document.getElementById(id);
 const [readout, power, approx, count, station, scale, slider, track, plate, text] =
@@ -576,6 +588,7 @@ function goTo(i, dir) {
   if (i === current) return;
   dir = dir ?? Math.sign(i - current);
   current = i;
+  updateHash();
   slider.value = i;
   showReadout(i);
   showText(i);
@@ -624,6 +637,7 @@ function setLang(l, init) {
                               : '2^256, a zoom through the orders of magnitude';
   slider.setAttribute('aria-label', l === 'de' ? 'Station wählen' : 'Choose a station');
   langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === l));
+  updateHash();
   if (init) return;                         // first render below already uses `lang`
   drawText();
   const t = track.style.transition;

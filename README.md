@@ -62,6 +62,11 @@ opens and leads into the zoom.
   it can be dragged.
 - «DE | EN» in the top right switches between German and English in
   place, keeping the current station.
+- The URL follows along as `#language/station`, so any view can be
+  bookmarked or shared: for example
+  [`zoom.html#de/coldcard`](https://tlausz.github.io/keyspace/zoom.html#de/coldcard)
+  opens the Coldcard station in German. The exponent works too
+  (`#en/128`).
 
 ## Running it
 

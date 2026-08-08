@@ -207,11 +207,13 @@ const I18N = {
 const langBtns = document.querySelectorAll('.lang button');
 function setLang(l) {
   localStorage.setItem('lang', l);
+  history.replaceState(null, '', '#' + l);
   document.documentElement.lang = l === 'de' ? 'de-CH' : 'en';
   langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === l));
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = I18N[l][el.dataset.i18n]; });
 }
-setLang(localStorage.getItem('lang') || 'en');
+const hashLang = ['de', 'en'].find(l => l === location.hash.slice(1).toLowerCase());
+setLang(hashLang || localStorage.getItem('lang') || 'en');
 langBtns.forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
 
 // Flat 2d point cloud; after a calm drift the blurred "2^256" glyph acts as a
@@ -523,7 +525,8 @@ function render(t) {
 // window-level so the cloud reacts even under the modal or the panel
 addEventListener('mousemove', e => { P.mouse.x = e.clientX; P.mouse.y = e.clientY; });
 document.documentElement.addEventListener('mouseleave', () => { P.mouse.x = -1e9; P.mouse.y = -1e9; });
-document.getElementById('enterBtn').addEventListener('click', () => location.href = 'zoom.html');
+document.getElementById('enterBtn').addEventListener('click', () =>
+  location.href = 'zoom.html#' + (localStorage.getItem('lang') || 'en'));
 
 let resizeTimer;
 addEventListener('resize', () => {
