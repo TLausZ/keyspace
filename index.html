@@ -211,7 +211,7 @@ function setLang(l) {
   langBtns.forEach(b => b.classList.toggle('active', b.dataset.lang === l));
   document.querySelectorAll('[data-i18n]').forEach(el => { el.innerHTML = I18N[l][el.dataset.i18n]; });
 }
-setLang(localStorage.getItem('lang') || 'de');
+setLang(localStorage.getItem('lang') || 'en');
 langBtns.forEach(b => b.addEventListener('click', () => setLang(b.dataset.lang)));
 
 // Flat 2d point cloud; after a calm drift the blurred "2^256" glyph acts as a

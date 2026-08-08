@@ -77,3 +77,7 @@ are switched off.
 Every station image is a reworked photograph, map or illustration.
 [`assets/CREDITS.md`](assets/CREDITS.md) lists author, source, license
 and the exact modifications for each one.
+
+---
+
+Built with [Claude Code](https://claude.com/claude-code).

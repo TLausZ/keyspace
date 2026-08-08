@@ -455,7 +455,7 @@ const EN = {
       'Put differently: roughly one atom in a thousand in the universe is a Bitcoin key.'] },
 };
 
-let lang = localStorage.getItem('lang') || 'de';
+let lang = localStorage.getItem('lang') || 'en';
 const tr = s => lang === 'de' ? s
   : { ...s, ...EN[s.exp], approx: s.approx.replace(',', '.'),
       images: s.images.map((im, k) => ({ ...im, label: EN[s.exp].labels[k] })) };
