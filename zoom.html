@@ -4,6 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>2^256, Zoom durch die Grössenordnungen</title>
+<meta name="description" content="One atom is one seed: eighteen illustrated stations measure the Bitcoin keyspace, from a single atom to the observable universe.">
+<meta property="og:title" content="2^256 · A zoom through the orders of magnitude">
+<meta property="og:description" content="One atom is one seed: eighteen illustrated stations measure the Bitcoin keyspace, from a single atom to the observable universe.">
+<meta property="og:image" content="https://tlausz.github.io/keyspace/screenshot-coldcard.png">
+<meta property="og:url" content="https://tlausz.github.io/keyspace/zoom.html">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='%23ece2cd'/><text x='4' y='52' font-family='system-ui,sans-serif' font-weight='900' font-size='48' fill='%235c4a34'>2</text><text x='33' y='28' font-family='system-ui,sans-serif' font-weight='900' font-size='16' textLength='28' lengthAdjust='spacingAndGlyphs' fill='%235c4a34'>256</text></svg>">
 <style>
   @font-face {
     font-family: 'EB Garamond';
@@ -234,10 +242,27 @@
     color: #8a7a5e;
     margin-bottom: 26px;
   }
+  .track .outro {
+    max-width: 56ch;
+    padding-left: 15px;              /* aligns with the entry text edge, like the howto */
+    font-size: 14px;
+    font-style: italic;
+    color: #8a7a5e;
+  }
+  /* the one grabbable thing down here carries the strongest contrast around it */
+  .track .outro a { color: #5c4a34; }
 
+  /* narrow: the plate stacks below the text instead of disappearing */
   @media (max-width: 900px) {
-    .body { grid-template-columns: 92px 1fr; }
-    .plate { display: none; }
+    .body { grid-template-columns: 92px 1fr; grid-template-rows: 1fr auto; }
+    .scale { grid-row: 1 / 3; }
+    .text { border-right: none; }
+    .plate { border-top: 1px solid rgba(110,92,64,0.25); height: 34vh; }
+    .frame { max-height: 30vh; }
+    .readout { flex-wrap: wrap; gap: 6px 14px; padding: 14px 16px 12px; }
+    .readout .power { font-size: 40px; }
+    .readout .approx { font-size: 26px; }
+    .readout .station { font-size: 22px; width: 100%; margin-left: 0; }
   }
   /* below this the rows are closer than a line of type: thin the labels out */
   @media (max-height: 420px) {
@@ -525,8 +550,13 @@ function drawScale() {
 function drawText() {
   const atoms = lang === 'de' ? 'Atome' : 'atoms';
   const howto = `<div class="howto">${lang === 'de'
-    ? 'Scrollen, Pfeiltasten ↑↓, ein Klick auf die Skala links oder Ziehen ihres Reglerknopfs führen durch die Stationen.'
-    : 'Scroll, use the arrow keys ↑↓, click a station on the left scale, or drag its knob.'}</div>`;
+    ? 'Wischen oder Scrollen, Pfeiltasten ↑↓, ein Klick auf die Skala links oder Ziehen ihres Reglerknopfs führen durch die Stationen.'
+    : 'Swipe or scroll, use the arrow keys ↑↓, click a station on the left scale, or drag its knob.'}</div>`;
+  // the journey ends with a way out, below the last entry and outside its
+  // accent border; measureText grants the last station the pan range to reach it
+  const outro = `<div class="outro">${lang === 'de'
+    ? `Ende der Reise. <a href="index.html#de">‹ Zurück zum Anfang</a>`
+    : `End of the journey. <a href="index.html#en">‹ Back to the start</a>`}</div>`;
   track.innerHTML = howto + STATIONS.map(raw => {
     const s = tr(raw);
     // one atom = one seed, so the station's power of two IS its seed count; exact, so it can be written out.
@@ -547,7 +577,7 @@ function drawText() {
       ${s.factor ? `<div class="factor">${s.factor}</div>` : ''}
       ${seeds}
     </div>`;
-  }).join('');
+  }).join('') + outro;
   measureText();
 }
 
@@ -558,6 +588,13 @@ function measureText() {
   const entries = [...track.querySelectorAll('.entry')];
   offsets = entries.map(e => e.offsetTop + e.offsetHeight / 2 - half);
   heights = entries.map(e => e.offsetHeight);
+  // count the outro (plus its gap) into the last height, doubled because the
+  // pan limit is symmetric around the entry centre; panning to the text end
+  // then travels far enough to reveal it
+  const outro = track.querySelector('.outro');
+  const last = entries[entries.length - 1];
+  heights[heights.length - 1] +=
+    2 * (outro.offsetTop + outro.offsetHeight - last.offsetTop - last.offsetHeight);
 }
 
 // entries taller than the column pan under the wheel before travel resumes;
@@ -604,6 +641,19 @@ function showPlate(i, dir) {
     .finished.then(() => old.remove(), () => {});
 }
 
+// warm the neighbours' images so a fast traveller never sees an empty frame
+const preloaded = new Set();
+function preloadNeighbours(i) {
+  for (const k of [i - 1, i + 1]) {
+    STATIONS[k]?.images.forEach(im => {
+      if (im.src && !preloaded.has(im.src)) {
+        preloaded.add(im.src);
+        new Image().src = im.src;
+      }
+    });
+  }
+}
+
 // the readout dips instead of cutting; seq drops swaps overtaken by a newer one
 let seq = 0;
 function showReadout(i) {
@@ -633,6 +683,7 @@ function goTo(i, dir) {
   showReadout(i);
   showText(i);
   showPlate(i, dir);
+  preloadNeighbours(i);
 }
 
 drawScale();
@@ -641,19 +692,19 @@ pan = -panLimit(current);                   // tall entries begin at the top of 
 showText(current);
 showPlate(current, 1);
 showReadout(current);
+preloadNeighbours(current);
 
-// one station costs a fixed amount of scrolling, so a flick does not race through the list
+// one station costs a fixed amount of scrolling, so a flick does not race through the list;
+// a finger travels less than a wheel, so touch gets a shorter step
 const WHEEL_STEP = 500;
+const TOUCH_STEP = 180;
 const WHEEL_IDLE = 400;
 const WHEEL_COOLDOWN = 260;
 let wheelSum = 0, wheelSeen = 0, wheelAt = 0;
 
-function onWheel(e) {
-  e.preventDefault();
-  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // vertical gestures only
+function travel(dy, step) {
   const now = performance.now();
-  const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
-  // a tall entry pans smoothly under the wheel first; travel resumes at its edge
+  // a tall entry pans smoothly under the gesture first; travel resumes at its edge
   const limit = panLimit(current);
   if (limit > 0 && ((dy > 0 && pan < limit) || (dy < 0 && pan > -limit))) {
     pan = Math.max(-limit, Math.min(limit, pan + dy));
@@ -665,13 +716,34 @@ function onWheel(e) {
   if (now - wheelSeen > WHEEL_IDLE || Math.sign(dy) !== Math.sign(wheelSum)) wheelSum = 0;
   wheelSeen = now;
   wheelSum += dy;
-  if (Math.abs(wheelSum) < WHEEL_STEP || now - wheelAt < WHEEL_COOLDOWN) return;
+  if (Math.abs(wheelSum) < step || now - wheelAt < WHEEL_COOLDOWN) return;
   const dir = Math.sign(wheelSum);
   wheelSum = 0;
   wheelAt = now;
   goTo(current + dir, dir);
 }
+
+function onWheel(e) {
+  e.preventDefault();
+  if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // vertical gestures only
+  travel(e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1), WHEEL_STEP);
+}
 [text, plate, scale].forEach(el => el.addEventListener('wheel', onWheel, { passive: false }));
+
+// touch: swipe distance feeds the same accumulator as the wheel
+let touchY = null;
+function onTouchMove(e) {
+  if (touchY === null || e.touches.length > 1) return;    // leave pinch gestures alone
+  e.preventDefault();
+  const y = e.touches[0].clientY;
+  travel(touchY - y, TOUCH_STEP);
+  touchY = y;
+}
+[text, plate].forEach(el => {
+  el.addEventListener('touchstart', e => { touchY = e.touches[0].clientY; }, { passive: true });
+  el.addEventListener('touchmove', onTouchMove, { passive: false });
+  el.addEventListener('touchend', () => { touchY = null; });
+});
 
 slider.max = STATIONS.length - 1;
 slider.value = current;
