@@ -47,18 +47,22 @@ Stationsbild 2^140, Oberer See, erzeugt aus `lake-superior-1867.jpg`.
   ist flau), Kanten weich in Transparenz auslaufend (Alphamaske, 70 px Rand
   mit Gauss-Weichzeichnung), als PNG mit Alphakanal gespeichert
 
-## atom-02.svg
+## atom-02.svg / atom-seed.svg
 
-Station 2^0, ein Atom. Linien-Icon: zwei Orbits, Kern als Punkt. Schwarzer
-Stroke (beim Einbinden auf die Tintenfarbe der CI umfärbbar).
+Station 2^0, ein Atom. Linien-Icon (zwei Orbits, Kern als Punkt) über
+einem selbst gezeichneten Seed-Backup-Bogen: 24 nummerierte Kästchen mit
+thematischen Wörtern (kein gültiger BIP39-Seed), papierfarbener Hof
+hinter dem Atom.
 
-- Urheber: Sammlung auf SVG Repo, Autor dort nicht einzeln genannt
+- Urheber des Atom-Icons: Sammlung auf SVG Repo, Autor dort nicht
+  einzeln genannt; Bogen und Komposition eigene Arbeit dieses Projekts
 - Quelle: https://www.svgrepo.com/svg/471029/atom-02
 - Lizenz: CC0, https://www.svgrepo.com/page/licensing/#CC0,
   keine Nennungspflicht
 - Änderungen: Strichfarbe von Schwarz auf das Tintenbraun der CI (#5c4a34),
-  Strichbreite von 2 auf 0.4 reduziert, fixe 800px-Grösse entfernt
-  (Skalierung übernimmt das CSS)
+  Strichbreite reduziert, fixe 800px-Grösse entfernt, Icon auf den
+  Kästchenbogen montiert (atom-seed.svg); atom-02.svg ist das
+  unveränderte Zwischenformat
 
 ## cowpox-virus.jpg
 
@@ -199,7 +203,7 @@ sich nicht von aussen fotografieren.
   Stationen), auf 1000 px skaliert, Kanten weich in Transparenz
   auslaufend; JPG unverändert (2100×922 px)
 
-## coldcard.png / coldcard-sepia.png
+## coldcard.png / coldcard-sepia-dithered.png
 
 Produkt-Render der Hardware-Wallets Coldcard Q und Coldcard Mk5.
 Stationsbild 2^40, Die Coldcard-Lücke.
@@ -209,10 +213,11 @@ Stationsbild 2^40, Die Coldcard-Lücke.
 - Lizenz: gemäss Hersteller-Webseite gemeinfrei (Angabe vom Projektinhaber
   übernommen, Hinweis-URL nicht archiviert). Marken- und Designrechte an
   Produkt und Logo bleiben unabhängig davon bei Coinkite.
-- Änderungen (coldcard-sepia.png): in Graustufen gewandelt, Kontrast leicht
-  gespreizt, Sepia-Duotone der Projekt-CI, auf den Inhalt beschnitten,
-  quadratisch gefasst, auf 1000 px skaliert, Alphakanal des Originals
-  übernommen; coldcard.png unverändert (836×762 px)
+- Änderungen: in Graustufen gewandelt, Kontrast leicht gespreizt,
+  Sepia-Duotone der Projekt-CI, auf den Inhalt beschnitten, quadratisch
+  gefasst, auf 1000 px skaliert, Alphakanal des Originals übernommen,
+  danach gedithert (Druckraster-Optik); coldcard.png unverändert
+  (836×762 px, nur lokal)
 
 ## deep-field.jpg / deep-field.png
 

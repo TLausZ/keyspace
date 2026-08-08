@@ -181,6 +181,7 @@
     margin-bottom: 8px;
   }
   .entry .factor { font-size: 14px; color: rgba(150,90,50,0.95); }
+  .entry .seeds { font-size: 14px; color: #8a7a5e; overflow-wrap: anywhere; margin-top: 2px; }
   .fade-top, .fade-bottom {
     position: absolute;
     left: 0;
@@ -223,16 +224,15 @@
     padding: 0 10px;
   }
   .frame .hint { font-size: 12px; }
-  .frame .art { width: 97.5%; height: auto; }
-  .slot .howto {
-    position: absolute;
-    bottom: 100%;
-    left: 0;
-    right: 0;
-    margin-bottom: 22px;
-    text-align: center;
-    font-size: 12px;
+  .frame .art { max-width: 97.5%; max-height: 97.5%; width: auto; height: auto; }
+  .track .howto {
+    max-width: 56ch;
+    padding-left: 15px;              /* entry padding plus border width, so the text edges align */
+    font-size: 16px;
+    font-style: italic;
+    line-height: 1.6;
     color: #8a7a5e;
+    margin-bottom: 26px;
   }
 
   @media (max-width: 900px) {
@@ -283,9 +283,9 @@
 // exp: leading exponent of the station. span: true range for merged stations.
 // The slider walks the array index, the left rail plots exp on a true 0..256 scale.
 const STATIONS = [
-  { exp: 0, name: 'Ein Atom', approx: '10<sup>0</sup>', count: 'ein Atom',
-    images: [{ label: 'Ein Atom', src: 'assets/atom-02.svg' }],
-    text: ['Zwölf oder vierundzwanzig Wörter, aus denen dein Wallet jeden Schlüssel ableitet. Auf dieser Reise ist ein Seed ein Atom.'] },
+  { exp: 0, name: 'Ein Atom, ein Bitcoin Wallet', approx: '10<sup>0</sup>', count: 'ein Atom',
+    images: [{ label: 'Ein Atom, dahinter ein Seed-Bogen mit 24 Wörtern', src: 'assets/atom-seed.svg' }],
+    text: ['Zwölf oder vierundzwanzig Wörter, aus denen dein Bitcoin Wallet jeden Schlüssel ableitet. Auf dieser Reise ist ein Seed ein Atom.'] },
 
   { exp: 10, name: 'Kleines Protein', approx: '10<sup>3</sup>', count: '1’024 Atome',
     factor: '×1’024 gegenüber dem einzelnen Atom',
@@ -309,10 +309,10 @@ const STATIONS = [
 
   { exp: 40, name: 'Die Coldcard-Lücke', approx: '10<sup>12</sup>', count: 'eine Billion Atome',
     accent: true, factor: '×8 gegenüber der Bakterie',
-    images: [{ label: 'Coldcard-Hardware-Wallets Q und Mk5', src: 'assets/coldcard-sepia.png' }],
+    images: [{ label: 'Coldcard-Hardware-Wallets Q und Mk5', src: 'assets/coldcard-sepia-dithered.png' }],
     text: [
-      'Zehn Bakterien, elf Billionstelgramm. Noch nicht einmal ein Staubkorn und trotzdem der teuerste Punkt der Skala.',
-      'Ein Firmware-Bug liess die Coldcards ihre Seeds aus 2<sup>40</sup> statt 2<sup>128</sup> Möglichkeiten ziehen. 2<sup>40</sup> Kandidaten durchzuprobieren kostet mit heutiger Hardware einen Tag Rechenzeit. Am 31. Juli 2026 verschwanden so 594 Bitcoin aus fünfhundert Wallets, inzwischen sind es über 1’300.',
+      'Noch nicht einmal ein Staubkorn, 2<sup>45</sup> Atome, und trotzdem der teuerste Punkt der Skala.',
+      'Ein Firmware-Bug liess die Coldcards ihre Seeds aus 2<sup>40</sup> statt 2<sup>256</sup> Möglichkeiten ziehen. 2<sup>40</sup> Kandidaten durchzuprobieren kostet mit heutiger Hardware einen Tag Rechenzeit. Am 31. Juli 2026 verschwanden so 594 Bitcoin aus fünfhundert Wallets, inzwischen sind es über 1’400.',
       'Betroffen ist jede Coldcard seit März 2021. Coinkite-Chef NVK räumte öffentlich ein, man sei bei der eigenen Kernaufgabe gescheitert, und rät, den Seed zu ersetzen und umzuziehen; ein Firmware-Update repariert ihn nicht. Aussen vor ist nur, wer fünfzig eigene Würfelwürfe eingab. Geräte anderer Hersteller, etwa die BitBox02, sind nicht betroffen.'] },
 
   { exp: 47, name: 'Menschliche Zelle', approx: '10<sup>14,1</sup>', count: '200 Billionen Atome',
@@ -395,8 +395,8 @@ const STATIONS = [
 // English text layer, keyed by station exponent; German is the source of truth in STATIONS.
 // labels[] follows the order of images[]. Long-scale German numbers become short-scale English.
 const EN = {
-  0: { name: 'One atom', count: 'one atom', labels: ['One atom'],
-    text: ['Twelve or twenty-four words from which your wallet derives every key. On this journey, one seed is one atom.'] },
+  0: { name: 'One atom, one Bitcoin wallet', count: 'one atom', labels: ['One atom over a seed sheet with 24 words'],
+    text: ['Twelve or twenty-four words from which your Bitcoin wallet derives every key. On this journey, one seed is one atom.'] },
   10: { name: 'Small protein', count: '1,024 atoms', factor: '×1,024 over the single atom',
     labels: ['Insulin, two peptide chains'],
     text: ['A thousand atoms make a protein of seventy amino acids, insulin for instance.'] },
@@ -412,8 +412,8 @@ const EN = {
   40: { name: 'The Coldcard gap', count: 'a trillion atoms', factor: '×8 over the bacterium',
     labels: ['Coldcard hardware wallets Q and Mk5'],
     text: [
-      'Ten bacteria, eleven trillionths of a gram. Not even a grain of dust, and still the most expensive point on this scale.',
-      'A firmware bug made Coldcards draw their seeds from 2<sup>40</sup> instead of 2<sup>128</sup> possibilities. Working through 2<sup>40</sup> candidates costs about a day of computing on today’s hardware. On 31 July 2026, 594 bitcoin vanished from five hundred wallets this way; by now it is more than 1,300.',
+      'Not even a grain of dust, 2<sup>45</sup> atoms, and still the most expensive point on this scale.',
+      'A firmware bug made Coldcards draw their seeds from 2<sup>40</sup> instead of 2<sup>256</sup> possibilities. Working through 2<sup>40</sup> candidates costs about a day of computing on today’s hardware. On 31 July 2026, 594 bitcoin vanished from five hundred wallets this way; by now it is more than 1,400.',
       'Every Coldcard since March 2021 is affected. Coinkite CEO NVK publicly admitted the company had failed at its core task and advises replacing the seed and moving on; a firmware update does not repair it. Only those who entered fifty of their own dice rolls are exempt. Devices by other makers, such as the BitBox02, are not affected.'] },
   47: { name: 'Human cell', count: '200 trillion atoms', factor: '×128 over ten bacteria',
     labels: ['Freshly divided HeLa cells, scanning electron microscopy'],
@@ -524,29 +524,58 @@ function drawScale() {
 
 function drawText() {
   const atoms = lang === 'de' ? 'Atome' : 'atoms';
-  track.innerHTML = STATIONS.map(raw => {
+  const howto = `<div class="howto">${lang === 'de'
+    ? 'Scrollen, Pfeiltasten ↑↓, ein Klick auf die Skala links oder Ziehen ihres Reglerknopfs führen durch die Stationen.'
+    : 'Scroll, use the arrow keys ↑↓, click a station on the left scale, or drag its knob.'}</div>`;
+  track.innerHTML = howto + STATIONS.map(raw => {
     const s = tr(raw);
+    // one atom = one seed, so the station's power of two IS its seed count; exact, so it can be written out.
+    // Beyond 2^256 there are no further seeds, the line disappears.
+    let seeds = '';
+    if (s.exp <= 256) {
+      const n = (2n ** BigInt(s.exp)).toLocaleString(lang === 'de' ? 'de-CH' : 'en-US');
+      const label = lang === 'de'
+        ? (s.exp === 0 ? 'möglicher Seed' : 'mögliche Seeds')
+        : (s.exp === 0 ? 'possible seed' : 'possible seeds');
+      seeds = `<div class="seeds">${n} ${label}</div>`;
+    }
     return `
     <div class="entry">
       <h2>${s.name}</h2>
       <div class="meta">2<sup>${s.exp}</sup> ≈ ${s.approx} ${atoms}</div>
       ${s.text.map(p => `<p>${p}</p>`).join('')}
       ${s.factor ? `<div class="factor">${s.factor}</div>` : ''}
+      ${seeds}
     </div>`;
   }).join('');
   measureText();
 }
 
 // offsets that put an entry's centre on the reading line; recomputed whenever the text reflows
-let offsets = [];
+let offsets = [], heights = [];
 function measureText() {
   const half = track.parentElement.clientHeight / 2;
-  offsets = [...track.children].map(e => e.offsetTop + e.offsetHeight / 2 - half);
+  const entries = [...track.querySelectorAll('.entry')];
+  offsets = entries.map(e => e.offsetTop + e.offsetHeight / 2 - half);
+  heights = entries.map(e => e.offsetHeight);
 }
 
+// entries taller than the column pan under the wheel before travel resumes;
+// FADE_ROOM keeps the first and last line clear of the edge gradients
+const FADE_ROOM = 96;
+let pan = 0;
+const panLimit = i => Math.max(0, (heights[i] - (track.parentElement.clientHeight - FADE_ROOM)) / 2);
+
 function showText(i) {
-  [...track.children].forEach((e, k) => e.classList.toggle('current', k === i));
-  track.style.transform = `translateY(${-offsets[i]}px)`;
+  pan = Math.max(-panLimit(i), Math.min(panLimit(i), pan));
+  [...track.querySelectorAll('.entry')].forEach((e, k) => e.classList.toggle('current', k === i));
+  track.style.transition = '';
+  track.style.transform = `translateY(${-(offsets[i] + pan)}px)`;
+}
+
+function applyPan() {
+  track.style.transition = 'none';
+  track.style.transform = `translateY(${-(offsets[current] + pan)}px)`;
 }
 
 // the plate keeps exactly one live slot; the outgoing one leaves opposite to the travel direction
@@ -555,10 +584,7 @@ function showPlate(i, dir) {
   const old = plate.querySelector('.slot');
   const slot = document.createElement('div');
   slot.className = 'slot';
-  const howto = i !== 0 ? '' : `<div class="howto">${lang === 'de'
-    ? 'Scrollen, Pfeiltasten ↑↓ oder die Skala links führen durch die Stationen'
-    : 'Scroll, use the arrow keys ↑↓, or pick a station on the scale to the left'}</div>`;
-  slot.innerHTML = howto + tr(STATIONS[i]).images.map(n => typeof n === 'string'
+  slot.innerHTML = tr(STATIONS[i]).images.map(n => typeof n === 'string'
     ? `<div class="frame"><span class="label">${n}</span><span class="hint">Bild folgt</span></div>`
     : `<div class="frame"><img class="art" src="${n.src}" alt="${n.label}"></div>`
   ).join('');
@@ -601,6 +627,7 @@ function goTo(i, dir) {
   if (i === current) return;
   dir = dir ?? Math.sign(i - current);
   current = i;
+  pan = dir >= 0 ? -panLimit(i) : panLimit(i);   // tall entries start at their reading edge
   updateHash();
   slider.value = i;
   showReadout(i);
@@ -610,6 +637,7 @@ function goTo(i, dir) {
 
 drawScale();
 drawText();
+pan = -panLimit(current);                   // tall entries begin at the top of their text
 showText(current);
 showPlate(current, 1);
 showReadout(current);
@@ -625,6 +653,15 @@ function onWheel(e) {
   if (Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;   // vertical gestures only
   const now = performance.now();
   const dy = e.deltaY * (e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? 400 : 1);
+  // a tall entry pans smoothly under the wheel first; travel resumes at its edge
+  const limit = panLimit(current);
+  if (limit > 0 && ((dy > 0 && pan < limit) || (dy < 0 && pan > -limit))) {
+    pan = Math.max(-limit, Math.min(limit, pan + dy));
+    applyPan();
+    wheelSum = 0;
+    wheelSeen = now;
+    return;
+  }
   if (now - wheelSeen > WHEEL_IDLE || Math.sign(dy) !== Math.sign(wheelSum)) wheelSum = 0;
   wheelSeen = now;
   wheelSum += dy;
