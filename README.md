@@ -16,7 +16,7 @@ Bitcoin private keys, made for readers without a mathematics background.
 The pages are drawn like an old topographic survey map: sepia paper, one
 family of brown inks, EB Garamond as the engraved lettering.
 
-Live at [tlausz.github.io/keyspace](https://tlausz.github.io/keyspace/).
+Live at [tlausz.github.io/keyspace](https://tlausz.github.io/keyspace/#en).
 
 ![Start screen: a dot cloud stamped by the glyph 2^256](screenshot-start.png)
 
